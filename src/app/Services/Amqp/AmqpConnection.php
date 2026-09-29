@@ -32,6 +32,7 @@ class AmqpConnection
         return $this->connection;
     }
 
+    /** Canal compartido (el mismo en cada llamada). */
     public function channel(): AMQPChannel
     {
         $connection = $this->connection();
@@ -41,6 +42,12 @@ class AmqpConnection
         }
 
         return $this->channel;
+    }
+
+    /** Canal nuevo e independiente (por ejemplo, para publicar con confirmaciones). */
+    public function openChannel(): AMQPChannel
+    {
+        return $this->connection()->channel();
     }
 
     public function close(): void
