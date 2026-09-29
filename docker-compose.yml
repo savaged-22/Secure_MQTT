@@ -1,0 +1,54 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    container_name: turnstile_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/www/html/database/database.sqlite
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-turnstile}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-turnstile_pass}
+      RABBITMQ_VHOST: /
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: turnstile_rabbitmq
+    hostname: rabbitmq          # fijo: RabbitMQ guarda sus datos según el hostname
+    ports:
+      - "5672:5672"             # AMQP
+      - "15672:15672"           # Panel de administración
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-turnstile}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-turnstile_pass}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Siguiente fase: workers con la misma imagen, por ejemplo
+  # worker-validate:
+  #   build: { context: ., args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
+  #   volumes: [ "./src:/var/www/html" ]
+  #   environment: *igual que app*
+  #   command: php artisan amqp:validate-access
+  #   restart: unless-stopped
+  #   depends_on: { rabbitmq: { condition: service_healthy } }
+
+volumes:
+  rabbitmq_data:
